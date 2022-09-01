@@ -3,34 +3,14 @@ let parseBody = arc.http.helpers.bodyParser
 const fetch = require('node-fetch');
 async function handler (req) {
  // console.log(req)
- prevhost=false
   proxyurl=req.rawPath.substring(1)
  
-  if(proxyurl.slice(0,4)!='http' && 'host' in req.session){
-    proxyurl=req.session.host+req.rawPath.substring(1)
-    console.log('>>>using prev url'+proxyurl)
-    prevhost=true
-  }else{
-    proxyurl=req.rawPath.substring(1)
-  }
-  currhost=proxyurl
   if (req.rawQueryString!=''){
     proxyurl+='?'+req.rawQueryString
   }
-  else{
-    if (proxyurl.substring(proxyurl.length-1)!='/'&&prevhost!=true){
-      console.log('*****'+proxyurl.substring(proxyurl.length-1))
-    proxyurl+='/'}}
-    proxyhost=''
-    proxyhostarr=proxyurl.split('/')
-    proxyhostarr[proxyhostarr.length-1]=''
-    console.log(proxyhostarr)
-
-    proxyhost=proxyhostarr.join('/')
-  console.log(proxyhost)
-  console.log('))'+proxyurl)
+ 
   const response = await fetch(proxyurl,{ headers: {
-    'authority': 'askjavascript.com',
+   
     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
     'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
     'cache-control': 'max-age=0',
@@ -49,11 +29,9 @@ async function handler (req) {
 }})
   text=await response.text()
   rheads=Object(response.headers.raw())
-  console.log()
   return {statusCode: 200,
-    headers: { 'content-type': 'text/html; charset=utf8' },
-  body: text,
-  session:{host:proxyhost}
+    headers: { 'content-type':rheads['content-type'][0]},
+  body: text
   }
 }
 exports.handler = arc.http.async(handler)
