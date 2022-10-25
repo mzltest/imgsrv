@@ -9,6 +9,7 @@
     "@architect/architect": "^10.4.1"
   },
   "dependencies": {
-"@sparticuz/chromium":"latest"
+     "@sparticuz/chromium":"latest",
+     "puppeteer-core": "latest"
   }
 }
