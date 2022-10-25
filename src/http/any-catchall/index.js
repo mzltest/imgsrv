@@ -1,76 +1,69 @@
-"use strict";
-
 const chromium = require("@sparticuz/chromium");
 const puppeteer = require("puppeteer-core");
+const DEFAULT_WIDTH = 1280;
+const DEFAULT_HEIGHT = 800;
 
-module.exports.handler = async (event, context, callback) => {
-  try {
-    let browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath,
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true,
-    });
 
-    let url = null;
-
-    if (event.queryStringParameters && event.queryStringParameters.url) {
-      url = decodeURIComponent(event.queryStringParameters.url);
-      url = url.toLowerCase();
-
-      if (!url.startsWith("http")) {
-        url = "http://" + url;
-      }
+exports.handler = async (event, context, callback) => {
+    if (typeof event.queryStringParameters.url === "undefined") {
+        callback((new Error("url query string parameter must be set.")));
+        return {
+            isBase64Encoded: false,
+            headers: {
+                'Content-Type': 'text/plain'
+            },
+            statusCode: 400,
+            body:'"url query string parameter must be set.'
+        };
     }
 
-    if (!url) {
-      let err = new Error("Url must be provided");
-      callback(err);
-    }
+    let screenshotBuffer = null;
+    let browser = null;
+    let width = parseInt(event.queryStringParameters.width);
 
-    let page = await browser.newPage();
-    let body = {};
+    if (isNaN(width))
+        width = DEFAULT_WIDTH;
+
+    let height = parseInt(event.queryStringParameters.height);
+
+    if (isNaN(height))
+        height = DEFAULT_HEIGHT;
 
     try {
-      let response = await page.goto(url, { waitUntil: ["domcontentloaded","networkidle2"] });
-      console.info(`pupetteer got a status of ${response.status()}`)
-      
-      let success = (response.status() < 400 || response.status() > 600);
-      let screenshot = await page.screenshot({ encoding: "base64" });
+        browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: { width, height },
+            executablePath: await chromium.executablePath,
+            headless: chromium.headless,
+            ignoreHTTPSErrors: true,
+        });
 
-      // got a screenshot but it may 404/500
-      body = {
-        url,
-        image: screenshot,
-        success,
-      };
-    } catch (e) {
-      // couldnt get a screenshot so its failed.
-      body = {
-        url,
-        image: undefined,
-        success: false,
-      };
+        let page = await browser.newPage();
 
+        await page.goto(event.queryStringParameters.url);
+
+        screenshotBuffer = await page.screenshot({encoding: 'base64'});
+    } catch (error) {
+        return {
+            isBase64Encoded: false,
+            headers: {
+                'Content-Type': 'text/plain'
+            },
+            statusCode: 500,
+            body: `Browser error: ${error}`
+        };
     } finally {
-      await page.close();
-      await browser.close();
-
-      console.info('body', body)
-
-      callback(null, {
-        statusCode: 200,
-        body: JSON.stringify(body),
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Content-Type": "application/json; charset=utf-8",
-          "Cache-Control": "max-age=60",
-        },
-      });
+        if (browser !== null) {
+            await browser.close();
+        }
     }
-  } catch (error) {
-    console.error('fatal error', error)
-    callback(error);
-  }
+
+    return {
+        statusCode: 200,
+        headers: {
+            'Content-Type': 'image/png'
+        },
+        isBase64Encoded: true,
+        body: screenshotBuffer
+    };
 };
