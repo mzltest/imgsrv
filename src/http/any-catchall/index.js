@@ -1,10 +1,11 @@
 "use strict";
 
-let chromium = require("chrome-aws-lambda");
+const chromium = require("@sparticuz/chromium");
+const puppeteer = require("puppeteer-core");
 
 module.exports.handler = async (event, context, callback) => {
   try {
-    let browser = await chromium.puppeteer.launch({
+    let browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath,
