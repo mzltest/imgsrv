@@ -9,7 +9,6 @@
     "@architect/architect": "^10.4.1"
   },
   "dependencies": {
- "chrome-aws-lambda": "^10.1.0",
-    "puppeteer-core": "^10.1.0"
+"@sparticuz/chromium":"latest"
   }
 }
