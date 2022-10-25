@@ -1,68 +1,75 @@
-const chromium = require('chrome-aws-lambda');
-const DEFAULT_WIDTH = 1280;
-const DEFAULT_HEIGHT = 800;
+"use strict";
 
+let chromium = require("chrome-aws-lambda");
 
-exports.handler = async (event, context, callback) => {
-    if (typeof event.queryStringParameters.url === "undefined") {
-        callback((new Error("url query string parameter must be set.")));
-        return {
-            isBase64Encoded: false,
-            headers: {
-                'Content-Type': 'text/plain'
-            },
-            statusCode: 400,
-            body:'"url query string parameter must be set.'
-        };
+module.exports.snapshot = async (event, context, callback) => {
+  try {
+    let browser = await chromium.puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
+    });
+
+    let url = null;
+
+    if (event.queryStringParameters && event.queryStringParameters.url) {
+      url = decodeURIComponent(event.queryStringParameters.url);
+      url = url.toLowerCase();
+
+      if (!url.startsWith("http")) {
+        url = "http://" + url;
+      }
     }
 
-    let screenshotBuffer = null;
-    let browser = null;
-    let width = parseInt(event.queryStringParameters.width);
+    if (!url) {
+      let err = new Error("Url must be provided");
+      callback(err);
+    }
 
-    if (isNaN(width))
-        width = DEFAULT_WIDTH;
-
-    let height = parseInt(event.queryStringParameters.height);
-
-    if (isNaN(height))
-        height = DEFAULT_HEIGHT;
+    let page = await browser.newPage();
+    let body = {};
 
     try {
-        browser = await chromium.puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: { width, height },
-            executablePath: await chromium.executablePath,
-            headless: chromium.headless,
-            ignoreHTTPSErrors: true,
-        });
+      let response = await page.goto(url, { waitUntil: ["domcontentloaded","networkidle2"] });
+      console.info(`pupetteer got a status of ${response.status()}`)
+      
+      let success = (response.status() < 400 || response.status() > 600);
+      let screenshot = await page.screenshot({ encoding: "base64" });
 
-        let page = await browser.newPage();
+      // got a screenshot but it may 404/500
+      body = {
+        url,
+        image: screenshot,
+        success,
+      };
+    } catch (e) {
+      // couldnt get a screenshot so its failed.
+      body = {
+        url,
+        image: undefined,
+        success: false,
+      };
 
-        await page.goto(event.queryStringParameters.url);
-
-        screenshotBuffer = await page.screenshot({encoding: 'base64'});
-    } catch (error) {
-        return {
-            isBase64Encoded: false,
-            headers: {
-                'Content-Type': 'text/plain'
-            },
-            statusCode: 500,
-            body: `Browser error: ${error}`
-        };
     } finally {
-        if (browser !== null) {
-            await browser.close();
-        }
-    }
+      await page.close();
+      await browser.close();
 
-    return {
+      console.info('body', body)
+
+      callback(null, {
         statusCode: 200,
+        body: JSON.stringify(body),
         headers: {
-            'Content-Type': 'image/png'
+          "Access-Control-Allow-Origin": "*",
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "max-age=60",
         },
-        isBase64Encoded: true,
-        body: screenshotBuffer
-    };
+      });
+    }
+  } catch (error) {
+    console.error('fatal error', error)
+    callback(error);
+  }
 };
