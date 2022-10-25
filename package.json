@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@architect/functions": "^5.2.1",
-    "chrome-aws-lambda": "^3.0.4",
-    "puppeteer-core": "^3.0.4"
+    "chrome-aws-lambda": "^4.0.1",
+    "puppeteer-core": "^4.0.1"
   }
 }
