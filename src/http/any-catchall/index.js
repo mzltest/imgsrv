@@ -2,7 +2,7 @@
 
 let chromium = require("chrome-aws-lambda");
 
-module.exports.snapshot = async (event, context, callback) => {
+module.exports.handler = async (event, context, callback) => {
   try {
     let browser = await chromium.puppeteer.launch({
       args: chromium.args,
